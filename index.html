@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stazione Meteo - Casa Ale Romano</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+            color: #1e293b;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        header h1 {
+            font-size: 2.4rem;
+            color: #0f172a;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        header p {
+            font-size: 1rem;
+            color: #64748b;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            width: 100%;
+            max-width: 750px;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 35px 25px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+            transition: transform 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+        }
+
+        .card .icon-wrapper {
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            font-size: 2rem;
+        }
+
+        .card.temp .icon-wrapper {
+            background-color: #fef2f2;
+            color: #ef4444;
+        }
+
+        .card.pres .icon-wrapper {
+            background-color: #f0f9ff;
+            color: #0284c7;
+        }
+
+        .card h2 {
+            font-size: 1.25rem;
+            color: #475569;
+            margin-bottom: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .data-value {
+            font-size: 2.8rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .unit {
+            font-size: 1.4rem;
+            font-weight: 500;
+            color: #94a3b8;
+            margin-left: 6px;
+        }
+
+        .timestamp {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-top: 15px;
+        }
+
+        .error-msg {
+            color: #ef4444;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Casa Ale Romano</h1>
+        <p>Stazione Meteo • Monitoraggio Continuo (1s)</p>
+    </header>
+
+    <main class="dashboard-grid">
+        <div class="card temp">
+            <div class="icon-wrapper">
+                <i class="fa-solid fa-temperature-half"></i>
+            </div>
+            <h2>Temperatura</h2>
+            <div class="data-value" id="temp-val">--<span class="unit">°C</span></div>
+        </div>
+
+        <div class="card pres">
+            <div class="icon-wrapper">
+                <i class="fa-solid fa-gauge-high"></i>
+            </div>
+            <h2>Pressione</h2>
+            <div class="data-value" id="pres-val">--<span class="unit">hPa</span></div>
+        </div>
+
+        <div class="timestamp" id="time-val">Connessione al sensore in corso...</div>
+    </main>
+
+    <script>
+        const channelId = "3516549"; 
+        const readApiKey = "TV96LYPRY8JSDVR3"; 
+
+        async function updateWeatherStation() {
+            const cacheBuster = new Date().getTime();
+            const url = `https://api.thingspeak.com/channels/${channelId}/feeds/last.json?api_key=${readApiKey}&_=${cacheBuster}`;
+
+            try {
+                const response = await fetch(url, { cache: "no-store" });
+                if (!response.ok) throw new Error("Risposta del server non valida");
+                
+                const data = await response.json();
+                
+                if (data) {
+                    const tempRaw = data.field1; 
+                    const presRaw = data.field2; 
+
+                    const tempContainer = document.getElementById('temp-val');
+                    const presContainer = document.getElementById('pres-val');
+                    const timeContainer = document.getElementById('time-val');
+
+                    // Temperatura a 1 decimale
+                    if (tempRaw !== null && tempRaw !== undefined) {
+                        const tempFormatted = isNaN(tempRaw) ? tempRaw : parseFloat(tempRaw).toFixed(1);
+                        tempContainer.innerHTML = `${tempFormatted}<span class="unit">°C</span>`;
+                    } else {
+                        tempContainer.innerHTML = `<span class="error-msg">N/D</span>`;
+                    }
+
+                    // Pressione a 1 decimale
+                    if (presRaw !== null && presRaw !== undefined) {
+                        const presFormatted = isNaN(presRaw) ? presRaw : parseFloat(presRaw).toFixed(1);
+                        presContainer.innerHTML = `${presFormatted}<span class="unit">hPa</span>`;
+                    } else {
+                        presContainer.innerHTML = `<span class="error-msg">N/D</span>`;
+                    }
+
+                    const timestamp = new Date(data.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    timeContainer.innerHTML = `Ultimo dato ricevuto alle ore: <b>${timestamp}</b>`;
+                }
+            } catch (error) {
+                console.error("Errore di sincronizzazione:", error);
+                document.getElementById('time-val').innerHTML = "<span style='color: #ef4444;'>Problema di rete. Tentativo di riconnessione...</span>";
+            }
+        }
+
+        // Avvio iniziale immediato
+        updateWeatherStation();
+        
+        // Loop di aggiornamento impostato a 1 secondo (1000ms)
+        setInterval(updateWeatherStation, 1000);
+    </script>
+</body>
+</html>
